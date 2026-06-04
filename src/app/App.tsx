@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { Home, Database, Briefcase } from "lucide-react";
 import { HomeScreen } from "./components/HomeScreen";
 import { DataScreen } from "./components/DataScreen";
 import { TasksScreen } from "./components/TasksScreen";
 import { TopicDetailScreen } from "./components/TopicDetailScreen";
 import { ActionReviewScreen } from "./components/ActionReviewScreen";
+import { StorageScreen } from "./components/StorageScreen";
+import { HistoryScreen } from "./components/HistoryScreen";
+import { AiSuggestScreen } from "./components/AiSuggestScreen";
+import { AnalyzingScreen } from "./components/AnalyzingScreen";
+import { Toaster } from "./components/ui/sonner";
 
-type NavTab = 'home' | 'data' | 'tasks';
-type AppScreen = 'home' | 'data' | 'tasks' | 'topicDetail' | 'actionReview';
+export type AppScreen = 'home' | 'data' | 'tasks' | 'topicDetail' | 'actionReview' | 'storage' | 'history' | 'aiSuggest' | 'analyzing';
+type PermissionStatus = 'unknown' | 'selecting' | 'granted' | 'partial' | 'denied';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [screen, setScreen] = useState<AppScreen>('home');
   const [navData, setNavData] = useState<Record<string, string>>({});
   const [dataSelectMode, setDataSelectMode] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('granted');
   const [dataSheet, setDataSheet] = useState<{ show: boolean; selectedCount: number; topicName: string }>({
     show: false, selectedCount: 0, topicName: '',
   });
@@ -21,13 +25,7 @@ export default function App() {
   const navigate = (s: AppScreen, data: Record<string, string> = {}) => {
     setScreen(s);
     setNavData(data);
-    if (s === 'home' || s === 'data' || s === 'tasks') {
-      setActiveTab(s as NavTab);
-    }
   };
-
-  const showBottomNav =
-    (screen === 'home' || screen === 'data' || screen === 'tasks') && !dataSelectMode;
 
   return (
     <>
@@ -35,7 +33,9 @@ export default function App() {
         .phone-scroll::-webkit-scrollbar { display: none; }
         .phone-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spinOnce { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .screen-enter { animation: fadeIn 0.2s ease-out; }
+        .scan-spin { animation: spinOnce 0.7s linear infinite; }
         button { transition: filter 0.08s ease; }
         button:active { filter: brightness(0.8) !important; }
       `}</style>
@@ -95,11 +95,11 @@ export default function App() {
             {/* Status bar */}
             <div
               className="flex justify-between items-center px-7 pt-3.5 pb-1.5 flex-shrink-0"
-              style={{ background: screen === 'home' ? 'transparent' : 'white' }}
+              style={{ background: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'transparent' : 'white' }}
             >
               <span className="text-[12px]" style={{
                 fontWeight: 600,
-                color: screen === 'home' ? 'white' : '#1E293B',
+                color: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'white' : '#1E293B',
               }}>9:41</span>
               <div className="flex items-center gap-2">
                 {/* Signal */}
@@ -110,7 +110,7 @@ export default function App() {
                       className="w-[3px] rounded-sm"
                       style={{
                         height: `${h}px`,
-                        background: screen === 'home' ? 'rgba(255,255,255,0.8)' : '#1E293B',
+                        background: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.8)' : '#1E293B',
                         opacity: i < 3 ? 0.5 + i * 0.15 : 1,
                       }}
                     />
@@ -118,27 +118,27 @@ export default function App() {
                 </div>
                 {/* WiFi icon */}
                 <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
-                  <path d="M7.5 8.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" fill={screen === 'home' ? 'rgba(255,255,255,0.9)' : '#1E293B'} />
-                  <path d="M4.8 6.3a3.8 3.8 0 0 1 5.4 0" stroke={screen === 'home' ? 'rgba(255,255,255,0.9)' : '#1E293B'} strokeWidth="1.2" strokeLinecap="round" fill="none" />
-                  <path d="M2.3 3.8a7 7 0 0 1 10.4 0" stroke={screen === 'home' ? 'rgba(255,255,255,0.6)' : '#94A3B8'} strokeWidth="1.2" strokeLinecap="round" fill="none" />
+                  <path d="M7.5 8.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" fill={(screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.9)' : '#1E293B'} />
+                  <path d="M4.8 6.3a3.8 3.8 0 0 1 5.4 0" stroke={(screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.9)' : '#1E293B'} strokeWidth="1.2" strokeLinecap="round" fill="none" />
+                  <path d="M2.3 3.8a7 7 0 0 1 10.4 0" stroke={(screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.6)' : '#94A3B8'} strokeWidth="1.2" strokeLinecap="round" fill="none" />
                 </svg>
                 {/* Battery */}
                 <div className="flex items-center gap-0.5">
                   <div
                     className="w-[22px] h-[11px] rounded-[3px] border p-[1.5px] flex"
-                    style={{ borderColor: screen === 'home' ? 'rgba(255,255,255,0.7)' : '#64748B' }}
+                    style={{ borderColor: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.7)' : '#64748B' }}
                   >
                     <div
                       className="h-full rounded-[1.5px]"
                       style={{
                         width: '75%',
-                        background: screen === 'home' ? 'rgba(255,255,255,0.8)' : '#10B981',
+                        background: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.8)' : '#10B981',
                       }}
                     />
                   </div>
                   <div
                     className="w-[2px] h-[6px] rounded-full"
-                    style={{ background: screen === 'home' ? 'rgba(255,255,255,0.6)' : '#64748B' }}
+                    style={{ background: (screen === 'home' || screen === 'aiSuggest' || screen === 'analyzing') ? 'rgba(255,255,255,0.6)' : '#64748B' }}
                   />
                 </div>
               </div>
@@ -152,6 +152,9 @@ export default function App() {
               {screen === 'data' && (
                 <DataScreen
                   navigate={navigate}
+                  data={navData}
+                  permissionStatus={permissionStatus}
+                  setPermissionStatus={setPermissionStatus}
                   onSelectModeChange={setDataSelectMode}
                   onOpenSheet={(count, name) => setDataSheet({ show: true, selectedCount: count, topicName: name })}
                 />
@@ -159,11 +162,23 @@ export default function App() {
               {screen === 'tasks' && (
                 <TasksScreen navigate={navigate} />
               )}
+              {screen === 'history' && (
+                <HistoryScreen navigate={navigate} />
+              )}
+              {screen === 'aiSuggest' && (
+                <AiSuggestScreen navigate={navigate} data={navData} />
+              )}
+              {screen === 'analyzing' && (
+                <AnalyzingScreen navigate={navigate} data={navData} />
+              )}
               {screen === 'topicDetail' && (
                 <TopicDetailScreen navigate={navigate} data={navData} />
               )}
               {screen === 'actionReview' && (
                 <ActionReviewScreen navigate={navigate} data={navData} />
+              )}
+              {screen === 'storage' && (
+                <StorageScreen navigate={navigate} permissionStatus={permissionStatus} />
               )}
             </div>
 
@@ -196,7 +211,13 @@ export default function App() {
                     />
                   </div>
                   <button
-                    onClick={() => { setDataSheet((s) => ({ ...s, show: false })); setDataSelectMode(false); navigate('topicDetail', { topicId: '1' }); }}
+                    onClick={() => {
+                      const count = dataSheet.selectedCount;
+                      const name = dataSheet.topicName;
+                      setDataSheet((s) => ({ ...s, show: false }));
+                      setDataSelectMode(false);
+                      navigate('analyzing', { selectedCount: String(count), topicName: name });
+                    }}
                     className="w-full py-3.5 rounded-2xl text-[14px] text-white mb-2.5"
                     style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)', fontWeight: 700, boxShadow: '0 4px 16px rgba(29,78,216,0.3)' }}
                   >
@@ -213,63 +234,7 @@ export default function App() {
               </>
             )}
 
-            {/* Bottom navigation */}
-            {showBottomNav && (
-              <div
-                className="flex-shrink-0 border-t"
-                style={{
-                  background: 'rgba(255,255,255,0.97)',
-                  borderColor: '#BFDBFE',
-                  paddingBottom: '14px',
-                  paddingTop: '6px',
-                  backdropFilter: 'blur(12px)',
-                }}
-              >
-                <div className="flex">
-                  {(
-                    [
-                      { id: 'home' as const, icon: Home, label: '홈' },
-                      { id: 'data' as const, icon: Database, label: '데이터' },
-                      { id: 'tasks' as const, icon: Briefcase, label: '작업' },
-                    ]
-                  ).map(({ id, icon: Icon, label }) => {
-                    const isActive = activeTab === id;
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => navigate(id)}
-                        className="flex-1 flex flex-col items-center pt-1 pb-0.5"
-                      >
-                        <div
-                          className="w-10 h-8 rounded-xl flex items-center justify-center mb-0.5 transition-all"
-                          style={isActive
-                            ? { background: '#FFFFFF' }
-                            : { background: 'transparent' }
-                          }
-                        >
-                          <Icon
-                            size={20}
-                            style={{
-                              color: isActive ? '#1D4ED8' : '#94A3B8',
-                              strokeWidth: isActive ? 2.5 : 1.8,
-                            }}
-                          />
-                        </div>
-                        <span
-                          className="text-[10px]"
-                          style={{
-                            color: isActive ? '#1D4ED8' : '#94A3B8',
-                            fontWeight: isActive ? 700 : 400,
-                          }}
-                        >
-                          {label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <Toaster position="top-center" richColors />
           </div>
         </div>
 

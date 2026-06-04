@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Camera, Trash2, AlertCircle, RefreshCw, X, ChevronRight, RotateCcw, ImageIcon, ShieldCheck, Check, ShieldOff } from "lucide-react";
+import { ArrowLeft, Camera, AlertCircle, RefreshCw, X, ChevronRight, RotateCcw, ImageIcon, ShieldCheck, Check, ShieldOff } from "lucide-react";
 
-type AppScreen = 'home' | 'data' | 'tasks' | 'topicDetail' | 'actionReview';
+type AppScreen = 'home' | 'data' | 'tasks' | 'topicDetail' | 'actionReview' | 'storage';
 type NavigateFn = (screen: AppScreen, data?: Record<string, string>) => void;
 
 const initialItems = [
@@ -62,21 +62,33 @@ const filterTabs: FilterType[] = ['전체', '메모', '링크', '이미지', '�
 
 type PermissionStatus = 'unknown' | 'selecting' | 'granted' | 'partial' | 'denied';
 
-export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
+export function DataScreen({ navigate, data = {}, permissionStatus, setPermissionStatus, onSelectModeChange, onOpenSheet }: {
   navigate: NavigateFn;
+  data?: Record<string, string>;
+  permissionStatus: PermissionStatus;
+  setPermissionStatus: (status: PermissionStatus) => void;
   onSelectModeChange: (v: boolean) => void;
   onOpenSheet: (selectedCount: number, topicName: string) => void;
 }) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('전체');
   const [items, setItems] = useState(initialItems);
-  const [selectMode, setSelectMode] = useState(false);
+  const isCleanupMode = data.mode === 'cleanup';
+  const [selectMode, setSelectMode] = useState(isCleanupMode);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<typeof initialItems[0] | null>(null);
-  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanNotice, setScanNotice] = useState('새 스크린샷 없음');
   const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set(initialItems.map(i => i.id)));
   const [allowedIds, setAllowedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isCleanupMode) return;
+    setPermissionStatus('granted');
+    setSelectMode(true);
+    setSelected(new Set());
+    onSelectModeChange(true);
+  }, [isCleanupMode, setPermissionStatus, onSelectModeChange]);
 
   // Items visible based on permission
   const visibleItems = (() => {
@@ -122,11 +134,6 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
   const selectAllVisible = () => setSelected(new Set(filtered.map((i) => i.id)));
   const clearSelection = () => setSelected(new Set());
 
-  const deleteItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    setDeleteTargetId(null);
-  };
-
   const deleteAll = () => {
     setItems([]);
     setShowDeleteConfirm(false);
@@ -139,6 +146,17 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
   const confirmPartialSelection = () => {
     setAllowedIds(new Set(pickerSelected));
     setPermissionStatus('partial');
+  };
+
+
+  const handleRescan = () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setScanNotice('확인 중...');
+    window.setTimeout(() => {
+      setIsScanning(false);
+      setScanNotice('최신 상태로 업데이트됨');
+    }, 850);
   };
 
   // ── 사진 선택 화면 (일부 허용) — full screen ──────────────
@@ -232,11 +250,12 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
           <div className="flex-shrink-0">
             {!selectMode && (
               <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-[11px] px-3 py-1.5 rounded-xl border whitespace-nowrap"
-                style={{ background: '#FEF2F2', color: '#DC2626', borderColor: '#FCA5A5' }}
+                onClick={() => navigate('home')}
+                className="w-8 h-8 rounded-xl border flex items-center justify-center"
+                style={{ background: '#F8FAFC', color: '#64748B', borderColor: '#E2E8F0' }}
+                aria-label="홈으로 돌아가기"
               >
-                전체 삭제
+                <ArrowLeft size={15} />
               </button>
             )}
             {selectMode && selected.size > 0 && (
@@ -252,7 +271,7 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
           </div>
 
           <h2 className="flex-1 text-center text-[17px] text-[#1E293B]" style={{ fontWeight: 700 }}>
-            {selectMode ? (selected.size > 0 ? `${selected.size}개 선택됨` : '항목 선택') : '수집 데이터'}
+            {selectMode ? (selected.size > 0 ? `${selected.size}개 선택됨` : (isCleanupMode ? '삭제할 카드 선택' : '항목 선택')) : '수집 데이터'}
           </h2>
 
           <div className="flex-shrink-0">
@@ -282,14 +301,6 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
           <p className="text-[11px] text-[#DC2626] flex-1">수집된 데이터 {visibleItems.length}개를 모두 삭제할까요?</p>
           <button onClick={deleteAll} className="text-[10px] px-2 py-0.5 bg-[#DC2626] text-white rounded-lg">삭제</button>
           <button onClick={() => setShowDeleteConfirm(false)} className="text-[10px] px-2 py-0.5 bg-white text-[#64748B] rounded-lg border" style={{ borderColor: '#E2E8F0' }}>취소</button>
-        </div>
-      )}
-      {deleteTargetId && (
-        <div className="mx-4 mt-3 rounded-xl p-3 flex items-center gap-2" style={{ background: '#FEF2F2', border: '1px solid #FCA5A5' }}>
-          <AlertCircle size={14} className="text-[#DC2626] flex-shrink-0" />
-          <p className="text-[11px] text-[#DC2626] flex-1 leading-snug">이 항목을 삭제할까요?</p>
-          <button onClick={() => deleteItem(deleteTargetId)} className="text-[10px] px-2 py-0.5 bg-[#DC2626] text-white rounded-lg">삭제</button>
-          <button onClick={() => setDeleteTargetId(null)} className="text-[10px] px-2 py-0.5 bg-white text-[#64748B] rounded-lg border" style={{ borderColor: '#E2E8F0' }}>취소</button>
         </div>
       )}
 
@@ -357,20 +368,24 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
               <p className="text-[11px] text-[#64748B] mb-2.5 leading-relaxed">
                 {permissionStatus === 'partial'
                   ? <><span style={{ fontWeight: 600 }}>{allowedIds.size}개</span>의 사진에 접근 허용됨</>
-                  : <>최근 스크린샷을 다시 스캔할 수 있어요.{' '}<span className="text-[#2563EB]">새 스크린샷 없음</span> — 이전 항목은 모두 가져왔어요</>
+                  : <>최근 스크린샷을 다시 스캔할 수 있어요.{' '}<span className="text-[#2563EB]">{scanNotice}</span> — 이전 항목은 모두 가져왔어요</>
                 }
               </p>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setPermissionStatus('unknown')}
+                  onClick={handleRescan}
+                  disabled={isScanning}
                   className="flex-1 text-[11px] py-2 text-white rounded-xl flex items-center justify-center gap-1.5"
                   style={{ background: 'linear-gradient(135deg, #2563EB, #60A5FA)' }}
                 >
-                  <RefreshCw size={11} />
-                  다시 스캔
+                  <RefreshCw size={11} className={isScanning ? 'scan-spin' : ''} />
+                  {isScanning ? '스캔 중' : '다시 스캔'}
                 </button>
                 <button
-                  onClick={() => setPermissionStatus('selecting')}
+                  onClick={() => {
+                    setPermissionStatus('unknown');
+                    setPickerSelected(new Set(initialItems.map(i => i.id)));
+                  }}
                   className="flex-1 text-[11px] py-2 text-[#2563EB] rounded-xl border"
                   style={{ borderColor: '#BFDBFE', background: '#EFF6FF' }}
                 >
@@ -526,16 +541,6 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
                     <p className="text-[11px] text-[#1E293B] truncate" style={{ fontWeight: 500 }}>{item.name}</p>
                     <p className="text-[9px] text-[#94A3B8] mt-0.5">{item.date}</p>
                   </div>
-                  {!selectMode && (
-                    <button
-                      onClick={() => setDeleteTargetId(item.id)}
-                      className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg flex-shrink-0"
-                      style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5' }}
-                    >
-                      <Trash2 size={10} />
-                      삭제
-                    </button>
-                  )}
                 </div>
               </div>
             ))
@@ -548,11 +553,19 @@ export function DataScreen({ navigate, onSelectModeChange, onOpenSheet }: {
       {selectMode && selected.size > 0 && (
         <div className="flex-shrink-0 px-4 py-3" style={{ background: 'white', borderTop: '1px solid #BFDBFE' }}>
           <button
-            onClick={openBottomSheet}
+            onClick={() => {
+              if (isCleanupMode) {
+                setItems((prev) => prev.filter((i) => !selected.has(i.id)));
+                exitSelectMode();
+                navigate('storage');
+                return;
+              }
+              openBottomSheet();
+            }}
             className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 text-[14px] text-white"
             style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)', fontWeight: 700, boxShadow: '0 4px 16px rgba(29,78,216,0.35)' }}
           >
-            {selected.size}개 선택 완료
+            {isCleanupMode ? `${selected.size}개 삭제하기` : `${selected.size}개 선택 완료`}
             <ChevronRight size={16} />
           </button>
         </div>
